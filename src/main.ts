@@ -74,7 +74,6 @@ const dom = {
   cropPos: el<HTMLInputElement>('crop-pos'),
   cropPosOut: el<HTMLOutputElement>('crop-pos-out'),
 
-  grayFormula: el<HTMLPreElement>('gray-formula'),
   mix: {
     r: el<HTMLInputElement>('mix-r'),
     g: el<HTMLInputElement>('mix-g'),
@@ -443,10 +442,6 @@ function syncMixControls(): void {
     dom.mix[channel].value = String(state.mix[channel]);
     dom.mixOut[channel].textContent = mixFraction(state.mix[channel]).toFixed(4);
   }
-  dom.grayFormula.textContent =
-    `gray = (${mixFraction(state.mix.r).toFixed(4)}·R^2.2\n` +
-    `      + ${mixFraction(state.mix.g).toFixed(4)}·G^2.2\n` +
-    `      + ${mixFraction(state.mix.b).toFixed(4)}·B^2.2) ^ (1/2.2)`;
 }
 
 function syncLevelOutputs(): void {

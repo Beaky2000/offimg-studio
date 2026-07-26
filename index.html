@@ -73,11 +73,6 @@
             <canvas id="canvas-gray" class="preview" width="400" height="240"></canvas>
           </div>
           <div class="controls">
-            <p class="note">
-              Converted with <strong>linear intensity</strong>: gamma is decoded, the
-              channel weights are applied in linear light, then the result is re-encoded.
-            </p>
-            <pre class="formula" id="gray-formula"></pre>
             <fieldset>
               <legend>Colour filter</legend>
               <label class="field slider">
@@ -94,11 +89,12 @@
               </label>
               <p class="note muted">
                 Raising one channel lightens objects of that colour, like shooting
-                black-and-white through a coloured filter. The other two absorb the
-                difference so the weights always total 1.0000.
+                black-and-white film through a coloured filter &mdash; more red darkens a
+                blue sky. The other two adjust to compensate, so the overall brightness
+                stays the same.
               </p>
               <div class="row">
-                <button type="button" id="reset-mix">Reset to Rec.709</button>
+                <button type="button" id="reset-mix">Reset filter</button>
               </div>
             </fieldset>
           </div>

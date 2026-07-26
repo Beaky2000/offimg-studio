@@ -345,16 +345,6 @@ hr {
   color: #ff8d7a;
 }
 
-.formula {
-  margin: 0;
-  padding: 8px 10px;
-  background: var(--panel-2);
-  border-radius: 6px;
-  font: 11.5px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace;
-  color: var(--muted);
-  overflow-x: auto;
-}
-
 code {
   background: var(--panel-2);
   padding: 1px 4px;
