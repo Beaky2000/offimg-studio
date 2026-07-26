@@ -31,6 +31,7 @@ import { toGrayscale } from './pipeline/gray.js';
 import {
   DEFAULT_LEVELS,
   applyLut,
+  brightnessToGamma,
   buildLevelsLut,
   type LevelSettings,
 } from './pipeline/levels.js';
@@ -71,6 +72,8 @@ const dom = {
   whiteOut: el<HTMLOutputElement>('white-out'),
   contrast: el<HTMLInputElement>('contrast'),
   contrastOut: el<HTMLOutputElement>('contrast-out'),
+  brightness: el<HTMLInputElement>('brightness'),
+  brightnessOut: el<HTMLOutputElement>('brightness-out'),
   resetLevels: el<HTMLButtonElement>('reset-levels'),
   curve: el<HTMLCanvasElement>('curve'),
 
@@ -336,11 +339,17 @@ function wireControls(): void {
     syncLevelOutputs();
     invalidate(STAGE_LEVELS);
   });
+  dom.brightness.addEventListener('input', () => {
+    state.levels.brightness = Number(dom.brightness.value);
+    syncLevelOutputs();
+    invalidate(STAGE_LEVELS);
+  });
   dom.resetLevels.addEventListener('click', () => {
     state.levels = { ...DEFAULT_LEVELS };
     dom.blackPoint.value = String(state.levels.blackPoint);
     dom.whitePoint.value = String(state.levels.whitePoint);
     dom.contrast.value = String(state.levels.contrast);
+    dom.brightness.value = String(state.levels.brightness);
     syncLevelOutputs();
     invalidate(STAGE_LEVELS);
   });
@@ -405,6 +414,10 @@ function syncLevelOutputs(): void {
   dom.whiteOut.textContent = String(state.levels.whitePoint);
   dom.contrastOut.textContent =
     state.levels.contrast > 0 ? `+${state.levels.contrast}` : String(state.levels.contrast);
+  // Reported as the gamma value rather than the raw slider position: gamma is
+  // the meaningful quantity, and seeing it read exactly 1.00 makes the neutral
+  // point obvious.
+  dom.brightnessOut.textContent = `gamma ${brightnessToGamma(state.levels.brightness).toFixed(2)}`;
 }
 
 function wireDropAndPaste(): void {

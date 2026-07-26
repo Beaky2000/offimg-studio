@@ -65,11 +65,22 @@ noise.
 gamma-encoded bytes is the whole point; the primaries come out 126/219/77 instead of the
 naive 54/182/18.
 
-**3 — Tone.** A 256-entry LUT built from black point, white point and contrast, so a
-slider drag costs 256 operations plus one indexed read per pixel. Contrast uses the
-endpoint-preserving `gain` curve, `k = 2^(slider/50)`: `k = 1` is exactly the identity,
-`k > 1` is an S-curve, `k < 1` flattens, and 0 and 255 stay pinned so raising contrast
-can never move the points the user just set.
+**3 — Tone.** A 256-entry LUT built from black point, white point, contrast and
+brightness, so a slider drag costs 256 operations plus one indexed read per pixel
+(measured: 0.009 ms to rebuild). The controls compose as
+**stretch → S-curve (contrast) → gamma (brightness)**.
+
+Contrast uses the endpoint-preserving `gain` curve, `k = 2^(slider/50)`: `k = 1` is exactly
+the identity, `k > 1` is an S-curve, `k < 1` flattens. Brightness is a gamma curve with
+`gamma = 2^(slider/50)` and exponent `1/gamma`, so 0 gives exactly gamma 1.00 — a neutral
+linear response — and the readout shows the gamma value rather than the slider position.
+
+Gamma is applied **last**, deliberately. `gain` pivots about 0.5, so gamma-first would move
+the midtone off that pivot and contrast would then amplify the shift, making brightness
+grow stronger as contrast rose. Applying gamma afterwards keeps the two independent:
+measured midtone across the full contrast range at brightness +50 is 180–182, i.e. flat to
+within rounding. Every step pins 0 and 1, so neither control can disturb the black or white
+point.
 
 **4 — Dither.** One generic error-diffusion engine parameterised by taps + divisor +
 serpentine flag, covering Floyd–Steinberg, False Floyd–Steinberg, Jarvis–Judice–Ninke,

@@ -105,11 +105,18 @@
               <span class="label-row">Contrast <output id="contrast-out">0</output></span>
               <input type="range" id="contrast" min="-100" max="100" step="1" value="0" />
             </label>
+            <label class="field slider">
+              <span class="label-row"
+                >Brightness <output id="brightness-out">gamma 1.00</output
+              ></span>
+              <input type="range" id="brightness" min="-100" max="100" step="1" value="0" />
+            </label>
             <div class="row">
               <canvas id="curve" class="curve" width="128" height="128"></canvas>
               <p class="note muted">
-                Negative contrast flattens, positive applies an S-curve. 0 and 255 are
-                always preserved.
+                Negative contrast flattens, positive applies an S-curve. Brightness is a
+                gamma curve that lifts or lowers the midtones, applied after contrast so
+                the two stay independent. 0 and 255 are always preserved.
               </p>
             </div>
             <button type="button" id="reset-levels">Reset tone</button>

@@ -10,7 +10,9 @@ import { aspectMatchesTarget, computeDrawRect } from '../src/pipeline/frame.js';
 import { toGrayscale } from '../src/pipeline/gray.js';
 import {
   DEFAULT_LEVELS,
+  applyGamma,
   applyLut,
+  brightnessToGamma,
   buildLevelsLut,
   contrastToExponent,
   gain,
@@ -175,6 +177,111 @@ describe('contrastToExponent', () => {
   });
 });
 
+describe('brightnessToGamma', () => {
+  it('maps 0 to exactly gamma 1.0, a neutral response', () => {
+    expect(brightnessToGamma(0)).toBe(1);
+  });
+
+  it('is geometric and symmetric', () => {
+    expect(brightnessToGamma(100)).toBeCloseTo(4, 10);
+    expect(brightnessToGamma(-100)).toBeCloseTo(0.25, 10);
+    expect(brightnessToGamma(50) * brightnessToGamma(-50)).toBeCloseTo(1, 10);
+  });
+});
+
+describe('applyGamma', () => {
+  it('is the identity at gamma 1', () => {
+    for (const t of [0, 0.25, 0.5, 0.75, 1]) expect(applyGamma(t, 1)).toBe(t);
+  });
+
+  it('pins 0 and 1 for any gamma', () => {
+    for (const gamma of [0.25, 0.5, 2, 4]) {
+      expect(applyGamma(0, gamma)).toBe(0);
+      expect(applyGamma(1, gamma)).toBe(1);
+    }
+  });
+
+  it('lifts midtones above gamma 1 and lowers them below', () => {
+    expect(applyGamma(0.5, 2)).toBeGreaterThan(0.5);
+    expect(applyGamma(0.5, 0.5)).toBeLessThan(0.5);
+    // Conventional exponent is 1/gamma.
+    expect(applyGamma(0.5, 2)).toBeCloseTo(Math.SQRT1_2, 10);
+  });
+});
+
+describe('brightness in buildLevelsLut', () => {
+  const lutFor = (brightness: number, contrast = 0) =>
+    buildLevelsLut({ blackPoint: 0, whitePoint: 255, contrast, brightness });
+
+  it('lifts midtones when positive and lowers them when negative', () => {
+    expect(lutFor(50)[128]).toBeGreaterThan(128);
+    expect(lutFor(-50)[128]).toBeLessThan(128);
+  });
+
+  it('leaves black and white untouched at any setting', () => {
+    for (const brightness of [-100, -40, 0, 40, 100]) {
+      const lut = lutFor(brightness);
+      expect(lut[0]).toBe(0);
+      expect(lut[255]).toBe(255);
+    }
+  });
+
+  it('stays monotonic across the range, alone and with contrast', () => {
+    for (const brightness of [-100, -50, 0, 50, 100]) {
+      for (const contrast of [-100, 0, 100]) {
+        const lut = lutFor(brightness, contrast);
+        for (let v = 1; v < 256; v++) expect(lut[v]).toBeGreaterThanOrEqual(lut[v - 1]);
+      }
+    }
+  });
+
+  it('combines with contrast rather than overriding it', () => {
+    const both = lutFor(40, 60);
+    expect([...both]).not.toEqual([...lutFor(40, 0)]);
+    expect([...both]).not.toEqual([...lutFor(0, 60)]);
+  });
+
+  it('places the midtone independently of the contrast setting', () => {
+    // This is why gamma is applied after the S-curve. `gain` pins t = 0.5, so
+    // the exact midpoint ends up wherever brightness puts it whatever the
+    // contrast. Reversing the order would let contrast amplify the shift.
+    const gamma = brightnessToGamma(40);
+    for (const contrast of [-100, -50, 0, 50, 100]) {
+      const mid = applyGamma(gain(0.5, contrastToExponent(contrast)), gamma);
+      expect(mid).toBeCloseTo(applyGamma(0.5, gamma), 12);
+    }
+
+    // The LUT samples at v = 128, which is t = 128/255 — a hair above the
+    // midpoint — so entries drift by a level or two rather than being exactly
+    // equal. Bounded, not invariant.
+    const expected = Math.round(255 * applyGamma(0.5, gamma));
+    for (const contrast of [-100, -50, 0, 50, 100]) {
+      expect(Math.abs(lutFor(40, contrast)[128] - expected)).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('is a no-op at brightness 0, matching the pre-brightness behaviour', () => {
+    for (const contrast of [-100, 0, 100]) {
+      const lut = lutFor(0, contrast);
+      const k = contrastToExponent(contrast);
+      for (let v = 0; v < 256; v++) {
+        expect(lut[v]).toBe(Math.round(255 * gain(v / 255, k)));
+      }
+    }
+  });
+
+  it('still respects the black and white points', () => {
+    const lut = buildLevelsLut({
+      blackPoint: 64,
+      whitePoint: 192,
+      contrast: 0,
+      brightness: 80,
+    });
+    for (let v = 0; v <= 64; v++) expect(lut[v]).toBe(0);
+    for (let v = 192; v < 256; v++) expect(lut[v]).toBe(255);
+  });
+});
+
 describe('buildLevelsLut', () => {
   it('is the identity at default settings', () => {
     const lut = buildLevelsLut(DEFAULT_LEVELS);
@@ -182,7 +289,7 @@ describe('buildLevelsLut', () => {
   });
 
   it('clamps below the black point and above the white point', () => {
-    const lut = buildLevelsLut({ blackPoint: 64, whitePoint: 192, contrast: 0 });
+    const lut = buildLevelsLut({ blackPoint: 64, whitePoint: 192, contrast: 0, brightness: 0 });
     for (let v = 0; v <= 64; v++) expect(lut[v]).toBe(0);
     for (let v = 192; v < 256; v++) expect(lut[v]).toBe(255);
     expect(lut[128]).toBe(128); // exactly midway between the points -> 127.5, rounded up
@@ -190,32 +297,37 @@ describe('buildLevelsLut', () => {
 
   it('stays monotonic across the contrast range', () => {
     for (const contrast of [-100, -50, 0, 50, 100]) {
-      const lut = buildLevelsLut({ blackPoint: 20, whitePoint: 230, contrast });
+      const lut = buildLevelsLut({ blackPoint: 20, whitePoint: 230, contrast, brightness: 0 });
       for (let v = 1; v < 256; v++) expect(lut[v]).toBeGreaterThanOrEqual(lut[v - 1]);
     }
   });
 
   it('keeps the endpoints fixed when contrast is applied', () => {
     for (const contrast of [-100, 100]) {
-      const lut = buildLevelsLut({ blackPoint: 40, whitePoint: 210, contrast });
+      const lut = buildLevelsLut({ blackPoint: 40, whitePoint: 210, contrast, brightness: 0 });
       expect(lut[40]).toBe(0);
       expect(lut[210]).toBe(255);
     }
   });
 
   it('collapses to a hard threshold if the range is degenerate', () => {
-    const lut = buildLevelsLut({ blackPoint: 100, whitePoint: 100, contrast: 0 });
+    const lut = buildLevelsLut({ blackPoint: 100, whitePoint: 100, contrast: 0, brightness: 0 });
     expect(lut[99]).toBe(0);
     expect(lut[100]).toBe(255);
-    // Inverted input must not produce NaN or a wrapped byte.
-    const inverted = buildLevelsLut({ blackPoint: 200, whitePoint: 50, contrast: 0 });
+    // Inverted input must not produce NaN or a wrapped byte, whatever else is set.
+    const inverted = buildLevelsLut({
+      blackPoint: 200,
+      whitePoint: 50,
+      contrast: 40,
+      brightness: 40,
+    });
     expect([...inverted].every((v) => v === 0 || v === 255)).toBe(true);
   });
 });
 
 describe('applyLut', () => {
   it('maps every pixel through the table', () => {
-    const lut = buildLevelsLut({ blackPoint: 0, whitePoint: 255, contrast: 0 });
+    const lut = buildLevelsLut({ blackPoint: 0, whitePoint: 255, contrast: 0, brightness: 0 });
     const gray = new Uint8Array([0, 50, 128, 255]);
     expect([...applyLut(gray, lut)]).toEqual([0, 50, 128, 255]);
   });

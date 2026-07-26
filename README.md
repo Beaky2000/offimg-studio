@@ -39,8 +39,11 @@ live.
    result is re-encoded. This is meaningfully different from the naive weighted average
    most tools use — see [Gamma-Correct Grayscale
    Conversion](https://entropymine.com/imageworsener/grayscale/).
-3. **Tone** — black point, white point, and a contrast slider that applies an
-   endpoint-preserving S-curve.
+3. **Tone** — black point, white point, a contrast slider that applies an
+   endpoint-preserving S-curve, and a brightness slider that applies a gamma curve to lift
+   or lower the midtones (gamma 1.00 is neutral). Gamma is applied after the S-curve, so
+   the midtone lands where the brightness slider says regardless of the contrast setting.
+   Black and white are never disturbed by either.
 4. **Dither** — thirteen algorithms, error-diffusion and ordered, from Tanner Helland's
    [survey of dithering
    algorithms](https://tannerhelland.com/2012/12/28/dithering-eleven-algorithms-source-code.html):
