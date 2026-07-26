@@ -1,6 +1,6 @@
 # OFFIMG Studio — plan and status
 
-**Status: v1 complete and confirmed on hardware.** 105 tests pass; the encoder is verified
+**Status: v1 complete and confirmed on hardware.** 117 tests pass; the encoder is verified
 byte-for-byte against a genuine OFFIMG header; the pipeline has been exercised in a real
 browser; and output has been displayed on a real DM42 with correct black/white polarity.
 Only the GitHub publishing steps remain (see *Remaining*).
@@ -34,7 +34,7 @@ src/
   style.css
   io/bmp1.ts                   1-bit BMP encoder + minimal decoder
   io/decode.ts                 file / drop / paste → ImageBitmap
-  io/save.ts                   save dialog or download, plus output verification
+  io/save.ts                   save dialog, or download as a fallback
   pipeline/frame.ts            fill / fit → RGBA 400×240
   pipeline/gray.ts             linear-intensity grayscale
   pipeline/levels.ts           black/white point + contrast
@@ -154,15 +154,21 @@ Both comfortably inside a 16.7 ms frame, so sliders are live.
 
 ## Verification performed
 
-- 105 unit tests: header bytes and row padding; grayscale primaries; LUT identity and
-  monotonicity; `gain` endpoints; every dither kernel binary-valued and preserving pure
-  black and pure white; a hand-computed Floyd–Steinberg step; mean preservation for the
-  error-diffusing kernels; determinism of seeded random.
+- 117 unit tests: header bytes and row padding; grayscale primaries; LUT identity and
+  monotonicity; `gain` and gamma endpoints; brightness/contrast independence; every dither
+  kernel binary-valued and preserving pure black and pure white; a hand-computed
+  Floyd–Steinberg step; mean preservation for the error-diffusing kernels; determinism of
+  seeded random.
 - Encoder reproduces a genuine OFFIMG header byte for byte, and re-encodes a whole real
   off-image to a byte-identical file.
 - In-browser: all three sample aspect ratios framed correctly in all three modes; the
   encoded BMP re-decoded via `createImageBitmap` (the browser's own decoder, independent
-  of ours) round-trips all 96,000 pixels exactly.
+  of ours) round-tripped all 96,000 pixels exactly.
+
+  This was originally also wired to a "Verify output" button in the UI. That was removed:
+  it was a developer's check leaking into a user-facing tool, and it is redundant now that
+  the encoder is pinned byte-for-byte against a real off-image in the test suite and the
+  output has been confirmed on hardware.
 - UI wiring: aspect-mismatch detection, fit-mode notes, tone-slider mutual clamping,
   algorithm-dependent controls, zoom, reset.
 - Tests pass both with and without the optional reference image, so CI stays green on a

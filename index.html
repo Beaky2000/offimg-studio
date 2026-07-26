@@ -151,9 +151,10 @@
               File name
               <input type="text" id="filename" value="offimg.bmp" spellcheck="false" />
             </label>
+            <!-- Kept in a .row so the button sizes to its content; .controls is a
+                 stretching column and would otherwise make it full width. -->
             <div class="row">
               <button type="button" id="save" class="primary">Save BMP</button>
-              <button type="button" id="verify">Verify output</button>
             </div>
             <p id="save-status" class="note" role="status" aria-live="polite"></p>
             <p class="note muted">

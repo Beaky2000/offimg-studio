@@ -11,7 +11,7 @@ import './style.css';
 
 import { OFFIMG_HEIGHT, OFFIMG_WIDTH } from './io/bmp1.js';
 import { decodeImageFile, firstImageFile, toBmpFilename, type SourceImage } from './io/decode.js';
-import { ensureBmpExtension, saveOffimg, verifyOffimg } from './io/save.js';
+import { ensureBmpExtension, saveOffimg } from './io/save.js';
 import {
   DEFAULT_DITHER,
   DITHER_OPTIONS,
@@ -86,7 +86,6 @@ const dom = {
 
   filename: el<HTMLInputElement>('filename'),
   save: el<HTMLButtonElement>('save'),
-  verify: el<HTMLButtonElement>('verify'),
   saveStatus: el<HTMLParagraphElement>('save-status'),
 };
 
@@ -374,7 +373,7 @@ function wireControls(): void {
     invalidate(STAGE_DITHER);
   });
 
-  // Save / verify
+  // Save
   dom.save.addEventListener('click', () => {
     if (!mono) return;
     void (async () => {
@@ -391,19 +390,6 @@ function wireControls(): void {
         }
       } catch (error) {
         setStatus(error instanceof Error ? error.message : String(error), 'err');
-      }
-    })();
-  });
-
-  dom.verify.addEventListener('click', () => {
-    if (!mono) return;
-    void (async () => {
-      dom.verify.disabled = true;
-      try {
-        const result = await verifyOffimg(mono);
-        setStatus(result.message, result.ok ? 'ok' : 'err');
-      } finally {
-        dom.verify.disabled = false;
       }
     })();
   });
