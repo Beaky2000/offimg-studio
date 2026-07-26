@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OFFIMG Studio — DM42 off-image converter</title>
+    <meta
+      name="description"
+      content="Convert any image into a 400x240 1-bit BMP off-image for SwissMicros DM42 calculators. Runs entirely in your browser."
+    />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <h1>OFFIMG Studio</h1>
+        <p class="tagline">
+          400&times;240 1-bit BMP for SwissMicros DM42 &middot; nothing leaves your browser
+        </p>
+      </div>
+
+      <div class="topbar-actions">
+        <button type="button" id="pick-file" class="primary">Open image&hellip;</button>
+        <input type="file" id="file-input" accept="image/*" hidden />
+        <label class="field">
+          Zoom
+          <select id="zoom">
+            <option value="1">1&times;</option>
+            <option value="2" selected>2&times;</option>
+            <option value="3">3&times;</option>
+          </select>
+        </label>
+      </div>
+    </header>
+
+    <div id="dropzone" class="dropzone">
+      <p><strong>Drop an image here</strong>, paste from the clipboard, or use <em>Open image</em>.</p>
+      <p class="muted">JPEG, PNG, GIF, WebP, BMP, AVIF &mdash; anything your browser can decode.</p>
+    </div>
+
+    <p id="source-info" class="source-info" hidden></p>
+
+    <main id="stages" class="stages" hidden>
+      <!-- Stage 1 -------------------------------------------------------- -->
+      <section class="stage">
+        <h2><span class="num">1</span> Frame</h2>
+        <div class="stage-body">
+          <div class="preview-wrap">
+            <canvas id="canvas-frame" class="preview" width="400" height="240"></canvas>
+          </div>
+          <div class="controls">
+            <p id="ar-note" class="note"></p>
+            <fieldset id="fit-modes">
+              <legend>Aspect ratio mismatch</legend>
+              <label><input type="radio" name="fit" value="fill" checked /> Fill (crop)</label>
+              <label><input type="radio" name="fit" value="fit-white" /> Fit over white</label>
+              <label><input type="radio" name="fit" value="fit-black" /> Fit over black</label>
+            </fieldset>
+            <label class="field slider" id="crop-pos-field">
+              <span class="label-row">Crop position <output id="crop-pos-out">50%</output></span>
+              <input type="range" id="crop-pos" min="0" max="100" step="1" value="50" />
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- Stage 2 -------------------------------------------------------- -->
+      <section class="stage">
+        <h2><span class="num">2</span> Grayscale</h2>
+        <div class="stage-body">
+          <div class="preview-wrap">
+            <canvas id="canvas-gray" class="preview" width="400" height="240"></canvas>
+          </div>
+          <div class="controls">
+            <p class="note">
+              Converted with <strong>linear intensity</strong>: gamma is decoded, Rec.709
+              weights are applied in linear light, then the result is re-encoded.
+            </p>
+            <pre class="formula">gray = (0.2126&middot;R^2.2
+      + 0.7152&middot;G^2.2
+      + 0.0722&middot;B^2.2) ^ (1/2.2)</pre>
+            <p class="note muted">No options in this version.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Stage 3 -------------------------------------------------------- -->
+      <section class="stage">
+        <h2><span class="num">3</span> Tone</h2>
+        <div class="stage-body">
+          <div class="preview-wrap">
+            <canvas id="canvas-levels" class="preview" width="400" height="240"></canvas>
+          </div>
+          <div class="controls">
+            <label class="field slider">
+              <span class="label-row">Black point <output id="black-out">0</output></span>
+              <input type="range" id="black-point" min="0" max="255" step="1" value="0" />
+            </label>
+            <label class="field slider">
+              <span class="label-row">White point <output id="white-out">255</output></span>
+              <input type="range" id="white-point" min="0" max="255" step="1" value="255" />
+            </label>
+            <label class="field slider">
+              <span class="label-row">Contrast <output id="contrast-out">0</output></span>
+              <input type="range" id="contrast" min="-100" max="100" step="1" value="0" />
+            </label>
+            <div class="row">
+              <canvas id="curve" class="curve" width="128" height="128"></canvas>
+              <p class="note muted">
+                Negative contrast flattens, positive applies an S-curve. 0 and 255 are
+                always preserved.
+              </p>
+            </div>
+            <button type="button" id="reset-levels">Reset tone</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Stage 4 -------------------------------------------------------- -->
+      <section class="stage">
+        <h2><span class="num">4</span> Dither &amp; save</h2>
+        <div class="stage-body">
+          <div class="preview-wrap">
+            <canvas id="canvas-dither" class="preview" width="400" height="240"></canvas>
+          </div>
+          <div class="controls">
+            <label class="field">
+              Algorithm
+              <select id="algorithm"></select>
+            </label>
+            <label class="check"
+              ><input type="checkbox" id="serpentine" checked /> Serpentine scan</label
+            >
+            <label class="check"><input type="checkbox" id="invert" /> Invert output</label>
+            <label class="field slider" id="seed-field">
+              <span class="label-row">Random seed <output id="seed-out">1</output></span>
+              <input type="range" id="seed" min="1" max="9999" step="1" value="1" />
+            </label>
+
+            <hr />
+
+            <label class="field">
+              File name
+              <input type="text" id="filename" value="offimg.bmp" spellcheck="false" />
+            </label>
+            <div class="row">
+              <button type="button" id="save" class="primary">Save BMP</button>
+              <button type="button" id="verify">Verify output</button>
+            </div>
+            <p id="save-status" class="note" role="status" aria-live="polite"></p>
+            <p class="note muted">
+              Copy the file into the <code>/OFFIMG/</code> folder on the calculator's USB
+              disk, then switch the unit off.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        Runs entirely in your browser &mdash; no uploads, no network requests.
+        <a href="https://github.com/USER/offimg-studio">Source on GitHub</a>.
+      </p>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

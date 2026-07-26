@@ -1,0 +1,5 @@
+# Normalise to LF in the repository; contributors on any platform get a
+# consistent checkout. The BMP fixture must never be touched by EOL conversion.
+* text=auto eol=lf
+*.bin binary
+*.bmp binary

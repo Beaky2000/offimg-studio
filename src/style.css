@@ -1,0 +1,347 @@
+:root {
+  --bg: #16181c;
+  --panel: #1f2228;
+  --panel-2: #262a31;
+  --line: #343a44;
+  --text: #e6e8ec;
+  --muted: #969ca8;
+  --accent: #5aa9ff;
+  --accent-ink: #05203c;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0 clamp(12px, 3vw, 32px) 48px;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* ---------- top bar ---------- */
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 20px 0 16px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 0.2px;
+}
+
+.tagline {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* ---------- drop zone ---------- */
+
+.dropzone {
+  border: 2px dashed var(--line);
+  border-radius: 10px;
+  padding: 28px 20px;
+  text-align: center;
+  margin-bottom: 20px;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.dropzone p {
+  margin: 0;
+}
+
+.dropzone p + p {
+  margin-top: 6px;
+}
+
+.dropzone.dragover {
+  border-color: var(--accent);
+  background: #1d2a3a;
+}
+
+.dropzone.compact {
+  padding: 12px 16px;
+  font-size: 13px;
+}
+
+.dropzone.compact .muted {
+  display: none;
+}
+
+.source-info {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---------- stage grid ---------- */
+
+/* auto-fit means: two-up on a wide screen, single column when narrow, with no
+   media-query breakpoints to keep in sync. */
+.stages {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(540px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.stage {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px 18px;
+}
+
+.stage h2 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.stage h2 .num {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.stage-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.preview-wrap {
+  flex: 0 0 auto;
+}
+
+.controls {
+  flex: 1 1 200px;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---------- previews ---------- */
+
+/* Nearest-neighbour is mandatory: a dither pattern seen through a smoothing
+   filter misrepresents exactly the thing the user is judging. */
+.preview {
+  display: block;
+  image-rendering: pixelated;
+  background: #000;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+
+.curve {
+  image-rendering: auto;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  width: 96px;
+  height: 96px;
+  flex: 0 0 auto;
+}
+
+/* ---------- controls ---------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.topbar .field {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.field.slider .label-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.field.slider output {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.check {
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px 10px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+fieldset legend {
+  padding: 0 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+fieldset label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+fieldset:disabled {
+  opacity: 0.45;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+select,
+input[type="text"] {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 7px;
+  font: inherit;
+  font-size: 13px;
+}
+
+button {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 4px 0;
+  width: 100%;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ---------- text ---------- */
+
+.note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.note.ok {
+  color: #6bd67b;
+}
+
+.note.err {
+  color: #ff8d7a;
+}
+
+.formula {
+  margin: 0;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border-radius: 6px;
+  font: 11.5px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color: var(--muted);
+  overflow-x: auto;
+}
+
+code {
+  background: var(--panel-2);
+  padding: 1px 4px;
+  border-radius: 4px;
+  font: 12px ui-monospace, Consolas, monospace;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.footer {
+  margin-top: 28px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+a {
+  color: var(--accent);
+}
