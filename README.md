@@ -3,8 +3,7 @@
 Turn any image into a **SwissMicros DM42 OFFIMG** — the picture your calculator shows
 while it is switched off.
 
-**→ [Open the app](https://USER.github.io/offimg-studio/)** *(update this link after your
-first Pages deploy)*
+**→ [Open the app](https://beaky2000.github.io/offimg-studio/)**
 
 Output is a 400×240, 1-bit, `BITMAPINFOHEADER` ("Windows NT") BMP — exactly what the
 DM42 requires. Copy it into the `/OFFIMG/` folder on the calculator's USB disk and power
@@ -66,7 +65,7 @@ scaling to physical pixels means, and 4× is there when you want it larger.
 Requires [Node.js](https://nodejs.org/) 20 or newer.
 
 ```bash
-git clone https://github.com/USER/offimg-studio.git
+git clone https://github.com/Beaky2000/offimg-studio.git
 cd offimg-studio
 npm ci
 npm run dev

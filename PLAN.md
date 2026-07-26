@@ -188,8 +188,14 @@ Both comfortably inside a 16.7 ms frame, so sliders are live.
 
 ## Remaining
 
-1. Replace the `USER` placeholders in `README.md` and `index.html` with the real GitHub
-   account, then enable Pages (Settings → Pages → Source: GitHub Actions).
+1. **Enable GitHub Pages** on `Beaky2000/offimg-studio`: Settings → Pages → Build and
+   deployment → Source → **GitHub Actions**. This is a one-off manual step; it cannot be
+   done from the workflow file.
+
+   Until it is done, `actions/configure-pages` fails and `deploy` is skipped, so nothing is
+   published — which is exactly what happened on the first push (run 30215377797: `npm ci`,
+   `npm test` and `npm run build` all passed, then `configure-pages@v5` failed). Re-run the
+   workflow afterwards, or just push again.
 
 ## Deliberate simplifications
 
