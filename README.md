@@ -34,10 +34,17 @@ live.
    (crop, with a slider to steer *which* part is cropped), *fit over white*, or
    *fit over black*.
 2. **Grayscale** — converted with correct **linear intensity**: gamma is decoded, the
-   Rec.709 luma weights (0.2126 / 0.7152 / 0.0722) are applied in linear light, and the
-   result is re-encoded. This is meaningfully different from the naive weighted average
-   most tools use — see [Gamma-Correct Grayscale
-   Conversion](https://entropymine.com/imageworsener/grayscale/).
+   channel weights are applied in linear light, and the result is re-encoded. This is
+   meaningfully different from the naive weighted average most tools use — see
+   [Gamma-Correct Grayscale Conversion](https://entropymine.com/imageworsener/grayscale/).
+
+   A **colour filter** exposes the three weights, defaulting to Rec.709
+   (0.2126 / 0.7152 / 0.0722). Raising one channel lightens objects of that colour, exactly
+   like shooting black-and-white film through a coloured filter — a red filter darkens a
+   blue sky. It is often the only way to separate two colours of similar brightness once the
+   image is down to one bit. The other two channels absorb the difference, keeping their
+   relative balance and holding the total at exactly 1.0000, so the filter changes colour
+   response without ever shifting overall exposure.
 3. **Tone** — black point, white point, a contrast slider that applies an
    endpoint-preserving S-curve, and a brightness slider that applies a gamma curve to lift
    or lower the midtones (gamma 1.00 is neutral). Gamma is applied after the S-curve, so

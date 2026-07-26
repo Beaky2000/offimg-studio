@@ -74,13 +74,33 @@
           </div>
           <div class="controls">
             <p class="note">
-              Converted with <strong>linear intensity</strong>: gamma is decoded, Rec.709
-              weights are applied in linear light, then the result is re-encoded.
+              Converted with <strong>linear intensity</strong>: gamma is decoded, the
+              channel weights are applied in linear light, then the result is re-encoded.
             </p>
-            <pre class="formula">gray = (0.2126&middot;R^2.2
-      + 0.7152&middot;G^2.2
-      + 0.0722&middot;B^2.2) ^ (1/2.2)</pre>
-            <p class="note muted">No options in this version.</p>
+            <pre class="formula" id="gray-formula"></pre>
+            <fieldset>
+              <legend>Colour filter</legend>
+              <label class="field slider">
+                <span class="label-row">Red <output id="mix-r-out">0.2126</output></span>
+                <input type="range" id="mix-r" min="0" max="10000" step="1" value="2126" />
+              </label>
+              <label class="field slider">
+                <span class="label-row">Green <output id="mix-g-out">0.7152</output></span>
+                <input type="range" id="mix-g" min="0" max="10000" step="1" value="7152" />
+              </label>
+              <label class="field slider">
+                <span class="label-row">Blue <output id="mix-b-out">0.0722</output></span>
+                <input type="range" id="mix-b" min="0" max="10000" step="1" value="722" />
+              </label>
+              <p class="note muted">
+                Raising one channel lightens objects of that colour, like shooting
+                black-and-white through a coloured filter. The other two absorb the
+                difference so the weights always total 1.0000.
+              </p>
+              <div class="row">
+                <button type="button" id="reset-mix">Reset to Rec.709</button>
+              </div>
+            </fieldset>
           </div>
         </div>
       </section>

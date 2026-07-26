@@ -27,7 +27,15 @@ import {
   type FitMode,
   type FrameSettings,
 } from './pipeline/frame.js';
-import { toGrayscale } from './pipeline/gray.js';
+import {
+  CHANNEL_NAMES,
+  DEFAULT_MIX,
+  mixFraction,
+  setMixChannel,
+  toGrayscale,
+  type ChannelMix,
+  type ChannelName,
+} from './pipeline/gray.js';
 import {
   DEFAULT_LEVELS,
   applyLut,
@@ -66,6 +74,19 @@ const dom = {
   cropPos: el<HTMLInputElement>('crop-pos'),
   cropPosOut: el<HTMLOutputElement>('crop-pos-out'),
 
+  grayFormula: el<HTMLPreElement>('gray-formula'),
+  mix: {
+    r: el<HTMLInputElement>('mix-r'),
+    g: el<HTMLInputElement>('mix-g'),
+    b: el<HTMLInputElement>('mix-b'),
+  },
+  mixOut: {
+    r: el<HTMLOutputElement>('mix-r-out'),
+    g: el<HTMLOutputElement>('mix-g-out'),
+    b: el<HTMLOutputElement>('mix-b-out'),
+  },
+  resetMix: el<HTMLButtonElement>('reset-mix'),
+
   blackPoint: el<HTMLInputElement>('black-point'),
   blackOut: el<HTMLOutputElement>('black-out'),
   whitePoint: el<HTMLInputElement>('white-point'),
@@ -100,11 +121,13 @@ const previews = {
 
 const state: {
   frame: FrameSettings;
+  mix: ChannelMix;
   levels: LevelSettings;
   dither: DitherSettings;
   zoom: number;
 } = {
   frame: { ...DEFAULT_FRAME },
+  mix: { ...DEFAULT_MIX },
   levels: { ...DEFAULT_LEVELS },
   dither: { ...DEFAULT_DITHER },
   zoom: 2,
@@ -141,7 +164,7 @@ function recompute(): void {
     previews.frame.putRgba(framed);
   }
   if (from <= STAGE_GRAY && framed) {
-    gray = toGrayscale(framed, gray ?? undefined);
+    gray = toGrayscale(framed, state.mix, gray ?? undefined);
     previews.gray.putGray(gray);
   }
   if (from <= STAGE_LEVELS && gray) {
@@ -308,6 +331,20 @@ function wireControls(): void {
     invalidate(STAGE_FRAME);
   });
 
+  // Stage 2
+  for (const channel of CHANNEL_NAMES) {
+    dom.mix[channel].addEventListener('input', () => {
+      state.mix = setMixChannel(state.mix, channel as ChannelName, Number(dom.mix[channel].value));
+      syncMixControls();
+      invalidate(STAGE_GRAY);
+    });
+  }
+  dom.resetMix.addEventListener('click', () => {
+    state.mix = { ...DEFAULT_MIX };
+    syncMixControls();
+    invalidate(STAGE_GRAY);
+  });
+
   // Stage 3
   dom.blackPoint.addEventListener('input', () => {
     state.levels.blackPoint = Number(dom.blackPoint.value);
@@ -395,6 +432,23 @@ function wireControls(): void {
   });
 }
 
+/**
+ * Push the authoritative mix in `state` back out to all three sliders.
+ *
+ * All three are rewritten after any change, not just the one the user moved,
+ * because moving one redistributes the other two.
+ */
+function syncMixControls(): void {
+  for (const channel of CHANNEL_NAMES) {
+    dom.mix[channel].value = String(state.mix[channel]);
+    dom.mixOut[channel].textContent = mixFraction(state.mix[channel]).toFixed(4);
+  }
+  dom.grayFormula.textContent =
+    `gray = (${mixFraction(state.mix.r).toFixed(4)}·R^2.2\n` +
+    `      + ${mixFraction(state.mix.g).toFixed(4)}·G^2.2\n` +
+    `      + ${mixFraction(state.mix.b).toFixed(4)}·B^2.2) ^ (1/2.2)`;
+}
+
 function syncLevelOutputs(): void {
   dom.blackOut.textContent = String(state.levels.blackPoint);
   dom.whiteOut.textContent = String(state.levels.whitePoint);
@@ -454,6 +508,7 @@ populateAlgorithms();
 updateDitherControls();
 wireControls();
 wireDropAndPaste();
+syncMixControls();
 syncLevelOutputs();
 watchDevicePixelRatio();
 applyZoom(); // also draws the initial tone curve

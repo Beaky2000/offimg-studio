@@ -1,6 +1,6 @@
 # OFFIMG Studio — plan and status
 
-**Status: v1 complete and confirmed on hardware.** 117 tests pass; the encoder is verified
+**Status: v1 complete and confirmed on hardware.** 133 tests pass; the encoder is verified
 byte-for-byte against a genuine OFFIMG header; the pipeline has been exercised in a real
 browser; and output has been displayed on a real DM42 with correct black/white polarity.
 Only the GitHub publishing steps remain (see *Remaining*).
@@ -36,7 +36,7 @@ src/
   io/decode.ts                 file / drop / paste → ImageBitmap
   io/save.ts                   save dialog, or download as a fallback
   pipeline/frame.ts            fill / fit → RGBA 400×240
-  pipeline/gray.ts             linear-intensity grayscale
+  pipeline/gray.ts             linear-intensity grayscale + colour filter
   pipeline/levels.ts           black/white point + contrast
   pipeline/dither.ts           dispatcher
   pipeline/dither/matrices.ts       error-diffusion kernels
@@ -60,10 +60,26 @@ a DOM. Large reductions are done by successive halving before the final `drawIma
 because a single big downscale aliases and dithering then amplifies that into pattern
 noise.
 
-**2 — Grayscale, linear intensity.** `gray = (0.2126·R^2.2 + 0.7152·G^2.2 +
-0.0722·B^2.2)^(1/2.2)`, via a 256-entry decode LUT. Mixing in linear light rather than on
-gamma-encoded bytes is the whole point; the primaries come out 126/219/77 instead of the
-naive 54/182/18.
+**2 — Grayscale, linear intensity.** `gray = (Wr·R^2.2 + Wg·G^2.2 + Wb·B^2.2)^(1/2.2)`, via
+a 256-entry decode LUT. Mixing in linear light rather than on gamma-encoded bytes is the
+whole point; at the Rec.709 defaults the primaries come out 126/219/77 instead of the naive
+54/182/18.
+
+The weights are exposed as a **colour filter**: three sliders, defaulting to Rec.709
+(0.2126 / 0.7152 / 0.0722), with a reset button. Raising one channel lightens objects of
+that colour — the photographic trick of shooting black-and-white through a coloured filter,
+which is often the only way to separate two colours of similar luminance once the image is
+down to one bit.
+
+Moving one slider absorbs the difference into the other two, **in proportion to their
+current values** so their relative balance is untouched. Weights are stored as integers
+scaled by 10000 rather than as fractions: repeatedly redistributing a remainder in floats
+would accumulate rounding error and drift off 1.0, changing overall image brightness as a
+side effect of moving a slider. Integers make the total exact by construction, and 10000
+represents the Rec.709 defaults exactly (2126 + 7152 + 722 = 10000), so the default filter
+is bit-identical to the previous hard-coded literals. Because the weights always total
+exactly 1, a neutral gray is a round trip whatever the filter — the control can never shift
+overall exposure, only colour response.
 
 **3 — Tone.** A 256-entry LUT built from black point, white point, contrast and
 brightness, so a slider drag costs 256 operations plus one indexed read per pixel
@@ -154,8 +170,9 @@ Both comfortably inside a 16.7 ms frame, so sliders are live.
 
 ## Verification performed
 
-- 117 unit tests: header bytes and row padding; grayscale primaries; LUT identity and
-  monotonicity; `gain` and gamma endpoints; brightness/contrast independence; every dither
+- 133 unit tests: header bytes and row padding; grayscale primaries; colour-filter sum
+  exactness and neutral-gray invariance; LUT identity and monotonicity; `gain` and gamma
+  endpoints; brightness/contrast independence; every dither
   kernel binary-valued and preserving pure black and pure white; a hand-computed
   Floyd–Steinberg step; mean preservation for the error-diffusing kernels; determinism of
   seeded random.
@@ -202,5 +219,5 @@ Both comfortably inside a 16.7 ms frame, so sliders are live.
 - Stage 1 downscaling happens in gamma space; a linear-light box filter would be more
   correct but means hand-rolling resampling.
 - Dithering thresholds gamma-encoded values, as the classic algorithms do.
-- No colour-channel filters before grayscale, no rotate-90°, no unsharp mask, no settings
-  persistence — all noted as possible later additions.
+- No rotate-90°, no unsharp mask, no settings persistence — all noted as possible later
+  additions.

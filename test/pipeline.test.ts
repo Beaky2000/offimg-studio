@@ -7,7 +7,15 @@ import {
   type DitherSettings,
 } from '../src/pipeline/dither.js';
 import { aspectMatchesTarget, computeDrawRect } from '../src/pipeline/frame.js';
-import { toGrayscale } from '../src/pipeline/gray.js';
+import {
+  CHANNEL_NAMES,
+  DEFAULT_MIX,
+  WEIGHT_SCALE,
+  mixFraction,
+  setMixChannel,
+  toGrayscale,
+  type ChannelMix,
+} from '../src/pipeline/gray.js';
 import {
   DEFAULT_LEVELS,
   applyGamma,
@@ -138,7 +146,142 @@ describe('toGrayscale', () => {
   it('reuses a supplied output buffer', () => {
     const rgba = new Uint8ClampedArray(4 * 3);
     const out = new Uint8Array(3);
-    expect(toGrayscale(rgba, out)).toBe(out);
+    expect(toGrayscale(rgba, DEFAULT_MIX, out)).toBe(out);
+  });
+});
+
+describe('colour filter defaults', () => {
+  it('sums to exactly WEIGHT_SCALE', () => {
+    expect(DEFAULT_MIX.r + DEFAULT_MIX.g + DEFAULT_MIX.b).toBe(WEIGHT_SCALE);
+  });
+
+  it('represents the Rec.709 weights exactly, to the bit', () => {
+    // Not merely close: the scaled integers must divide to the same doubles as
+    // the literals, so the default filter cannot change existing output.
+    expect(mixFraction(DEFAULT_MIX.r)).toBe(0.2126);
+    expect(mixFraction(DEFAULT_MIX.g)).toBe(0.7152);
+    expect(mixFraction(DEFAULT_MIX.b)).toBe(0.0722);
+  });
+
+  it('is what toGrayscale uses when no mix is given', () => {
+    const rgba = new Uint8ClampedArray([200, 130, 40, 255, 12, 250, 99, 255]);
+    expect([...toGrayscale(rgba)]).toEqual([...toGrayscale(rgba, DEFAULT_MIX)]);
+  });
+});
+
+describe('setMixChannel', () => {
+  const total = (mix: ChannelMix) => mix.r + mix.g + mix.b;
+
+  it('keeps the total at exactly WEIGHT_SCALE for every setting', () => {
+    // Every channel, swept across the full range including values that do not
+    // divide evenly. Integer arithmetic makes this exact rather than approximate.
+    for (const channel of CHANNEL_NAMES) {
+      for (let v = 0; v <= WEIGHT_SCALE; v += 7) {
+        expect(total(setMixChannel(DEFAULT_MIX, channel, v))).toBe(WEIGHT_SCALE);
+      }
+    }
+  });
+
+  it('stays exact over a long chain of adjustments', () => {
+    // Drift would show up here if the remainder were tracked in floats.
+    let mix = { ...DEFAULT_MIX };
+    let seed = 99;
+    for (let i = 0; i < 500; i++) {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      const channel = CHANNEL_NAMES[seed % 3];
+      mix = setMixChannel(mix, channel, (seed >>> 5) % (WEIGHT_SCALE + 1));
+      expect(total(mix)).toBe(WEIGHT_SCALE);
+      expect(mix.r).toBeGreaterThanOrEqual(0);
+      expect(mix.g).toBeGreaterThanOrEqual(0);
+      expect(mix.b).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('sets the requested channel and reduces the other two when raised', () => {
+    const raised = setMixChannel(DEFAULT_MIX, 'r', 5000);
+    expect(raised.r).toBe(5000);
+    expect(raised.g).toBeLessThan(DEFAULT_MIX.g);
+    expect(raised.b).toBeLessThan(DEFAULT_MIX.b);
+  });
+
+  it('increases the other two when a channel is lowered', () => {
+    const lowered = setMixChannel(DEFAULT_MIX, 'g', 1000);
+    expect(lowered.g).toBe(1000);
+    expect(lowered.r).toBeGreaterThan(DEFAULT_MIX.r);
+    expect(lowered.b).toBeGreaterThan(DEFAULT_MIX.b);
+  });
+
+  it('preserves the ratio between the two untouched channels', () => {
+    // Nudging red must not change how green and blue compare to each other.
+    const before = DEFAULT_MIX.g / DEFAULT_MIX.b;
+    const after = setMixChannel(DEFAULT_MIX, 'r', 4000);
+    expect(after.g / after.b).toBeCloseTo(before, 2);
+  });
+
+  it('zeroes the other two when a channel is pushed to the maximum', () => {
+    const only = setMixChannel(DEFAULT_MIX, 'b', WEIGHT_SCALE);
+    expect(only).toEqual({ r: 0, g: 0, b: WEIGHT_SCALE });
+  });
+
+  it('splits evenly when the other two are both at zero', () => {
+    // No ratio to preserve, so neither channel may be favoured.
+    const collapsed = setMixChannel(DEFAULT_MIX, 'r', WEIGHT_SCALE);
+    const reopened = setMixChannel(collapsed, 'r', 0);
+    expect(reopened.g).toBe(WEIGHT_SCALE / 2);
+    expect(reopened.b).toBe(WEIGHT_SCALE / 2);
+  });
+
+  it('clamps out-of-range and fractional input', () => {
+    expect(setMixChannel(DEFAULT_MIX, 'r', -500).r).toBe(0);
+    expect(setMixChannel(DEFAULT_MIX, 'r', 99_999).r).toBe(WEIGHT_SCALE);
+    expect(setMixChannel(DEFAULT_MIX, 'r', 1234.6).r).toBe(1235);
+  });
+
+  it('does not mutate the mix it is given', () => {
+    const original = { ...DEFAULT_MIX };
+    setMixChannel(original, 'g', 42);
+    expect(original).toEqual(DEFAULT_MIX);
+  });
+});
+
+describe('colour filter effect on grayscale', () => {
+  const grayWith = (mix: ChannelMix, r: number, g: number, b: number) =>
+    toGrayscale(new Uint8ClampedArray([r, g, b, 255]), mix)[0];
+
+  it('renders a channel white when it takes the whole weight', () => {
+    const redOnly: ChannelMix = { r: WEIGHT_SCALE, g: 0, b: 0 };
+    expect(grayWith(redOnly, 255, 0, 0)).toBe(255);
+    expect(grayWith(redOnly, 0, 255, 255)).toBe(0);
+  });
+
+  it('lightens objects of the boosted colour', () => {
+    // The photographic filter effect: more red weight makes a red subject
+    // brighter than it is under Rec.709.
+    const boosted = setMixChannel(DEFAULT_MIX, 'r', 6000);
+    expect(grayWith(boosted, 255, 0, 0)).toBeGreaterThan(grayWith(DEFAULT_MIX, 255, 0, 0));
+    // ...and correspondingly darkens a blue sky.
+    expect(grayWith(boosted, 0, 0, 255)).toBeLessThan(grayWith(DEFAULT_MIX, 0, 0, 255));
+  });
+
+  it('leaves neutral grays unchanged for any mix summing to 1', () => {
+    // Because the weights total exactly 1, a neutral input is a round trip
+    // whatever the filter — so the filter can never shift overall exposure.
+    for (const channel of CHANNEL_NAMES) {
+      for (const v of [1000, 5000, 9000]) {
+        const mix = setMixChannel(DEFAULT_MIX, channel, v);
+        for (const level of [17, 64, 128, 200, 254]) {
+          expect(grayWith(mix, level, level, level)).toBe(level);
+        }
+      }
+    }
+  });
+
+  it('still preserves pure black and pure white', () => {
+    for (const channel of CHANNEL_NAMES) {
+      const mix = setMixChannel(DEFAULT_MIX, channel, 8000);
+      expect(grayWith(mix, 0, 0, 0)).toBe(0);
+      expect(grayWith(mix, 255, 255, 255)).toBe(255);
+    }
   });
 });
 
