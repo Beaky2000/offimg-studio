@@ -25,7 +25,7 @@ readable in devtools. Zero runtime dependencies.
 
 ```
 index.html                     single page, all four stages visible
-vite.config.ts                 base './' → works on Pages AND file://
+vite.config.ts                 base './' + inlineEverything() → single-file build
 .github/workflows/deploy.yml   npm ci → test → build → deploy-pages
 scripts/make-samples.mjs        generates samples/ test cards
 src/
@@ -91,6 +91,25 @@ at index 0. File size 12,542 bytes.
 Verified against a real off-image: **all 62 header bytes match**, including
 `biClrUsed`/`biClrImportant` = 0 (not 2 — both are legal, but matching a file the
 firmware demonstrably accepts leaves no room for doubt) and the zeroed resolution fields.
+
+## Distribution
+
+The build emits a **single** self-contained `dist/index.html` (~27 kB) via a ~30-line
+`inlineEverything()` plugin in `vite.config.ts`, rather than pulling in
+`vite-plugin-singlefile`. One artifact covers both routes: what GitHub Pages serves, and
+what a sceptical user can download, read end to end and run offline.
+
+Inlining turned out to be **required, not optional**. Chrome applies CORS to external
+`<script type="module">`, and a `file://` page has a null origin, so an external bundle is
+blocked and silently never executes — the page renders but no control responds. Relative
+asset paths (`base: './'`) are necessary for `file://` but not sufficient. The plugin
+fails the build if any subresource reference survives, so that failure cannot return
+unnoticed.
+
+`npm run dev` stays bound to localhost; `npm run dev:host` exposes the dev server on the
+LAN. Note this machine's Domain firewall profile has explicit inbound Block rules for
+Node.js, so LAN access needs an IT-policy change — copying `dist/index.html` is the
+practical way to view the app on another machine.
 
 ## Measured performance
 

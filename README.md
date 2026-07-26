@@ -22,8 +22,9 @@ the unit off.
   are TypeScript and Vite. Nothing you didn't read gets shipped.
 - **Read the source two ways.** Browse this repository, or just press F12 on the live
   page — the deployed bundle ships source maps.
-- Prefer to be fully offline? Grab `dist/index.html` from a build and open it from your
-  own disk.
+- **Prefer to be fully offline?** A build produces one self-contained
+  `dist/index.html` — all CSS and JavaScript inlined, no other files, about 27 kB.
+  Download it, read the whole thing, then double-click it. No server needed.
 
 ## The pipeline
 
@@ -71,8 +72,28 @@ npm run build
 npm test
 ```
 
-`npm run build` type-checks and writes a self-contained static site to `dist/`, which is
-all GitHub Pages needs.
+`npm run build` type-checks and writes a **single** self-contained file,
+`dist/index.html`, with the CSS and JS inlined. That one file is both what GitHub Pages
+serves and what you can open directly off disk.
+
+The inlining is not a size optimisation — it is what makes `file://` work. Chrome applies
+CORS to external `<script type="module">`, and a `file://` page has a null origin, so an
+external bundle is blocked and never executes: the page would render but no button would
+do anything. An inline module needs no fetch, so it runs. See `inlineEverything()` in
+[vite.config.ts](vite.config.ts).
+
+To serve the built file over HTTP instead:
+
+```bash
+npm run preview
+```
+
+To reach the dev server from another machine on your network (handy for checking pixel
+rendering at a different display scaling):
+
+```bash
+npm run dev:host
+```
 
 To regenerate the test images in `samples/` (a gray ramp, a step wedge, saturated colour
 bars and fine diagonal lines, at three different aspect ratios):
