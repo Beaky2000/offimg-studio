@@ -57,6 +57,7 @@ const dom = {
   sourceInfo: el<HTMLParagraphElement>('source-info'),
   stages: el<HTMLElement>('stages'),
   zoom: el<HTMLSelectElement>('zoom'),
+  zoomNote: el<HTMLSpanElement>('zoom-note'),
 
   arNote: el<HTMLParagraphElement>('ar-note'),
   fitModes: el<HTMLFieldSetElement>('fit-modes'),
@@ -145,7 +146,7 @@ function recompute(): void {
     const lut = buildLevelsLut(state.levels);
     toned = applyLut(gray, lut, toned ?? undefined);
     previews.levels.putGray(toned);
-    drawCurve(dom.curve, lut);
+    drawCurve(dom.curve, lut, window.devicePixelRatio || 1);
   }
   if (from <= STAGE_DITHER && toned) {
     mono = dither(toned, OFFIMG_WIDTH, OFFIMG_HEIGHT, state.dither, mono ?? undefined);
@@ -229,11 +230,51 @@ function setStatus(message: string, kind: 'ok' | 'err' | null): void {
   dom.saveStatus.classList.toggle('err', kind === 'err');
 }
 
+/**
+ * Zoom is expressed in device pixels per image pixel, so the previews are
+ * unaffected by the OS display scale. See the comment at the top of
+ * ui/preview.ts for why anything else produces unevenly sized pixels.
+ */
 function applyZoom(): void {
-  // The stage grid sizes its columns from --zoom (see style.css), so this has
-  // to be published to CSS as well as applied to each canvas.
-  document.documentElement.style.setProperty('--zoom', String(state.zoom));
-  for (const preview of Object.values(previews)) preview.setZoom(state.zoom);
+  const dpr = window.devicePixelRatio || 1;
+  const scale = Math.max(1, Math.round(state.zoom));
+  const cssWidth = (OFFIMG_WIDTH * scale) / dpr;
+
+  // The stage grid sizes its columns from the preview's on-screen width. It is
+  // published from here rather than recomputed in CSS so there is one source of
+  // truth for it.
+  document.documentElement.style.setProperty('--preview-w', `${cssWidth}px`);
+
+  for (const preview of Object.values(previews)) preview.setScale(scale, dpr);
+
+  dom.zoomNote.textContent =
+    dpr === 1
+      ? `${scale} screen pixel${scale === 1 ? '' : 's'} per image pixel`
+      : `${scale} device px per image pixel (display scale ${Math.round(dpr * 100)}%)`;
+
+  drawCurve(dom.curve, buildLevelsLut(state.levels), dpr);
+}
+
+/**
+ * Re-apply the zoom whenever the device pixel ratio changes — dragging the
+ * window to a monitor with a different density, or changing the Windows display
+ * scale while the page is open. A resolution media query is the only reliable
+ * notification for this; it has to be re-armed after each change because the
+ * query itself is tied to the old ratio.
+ */
+function watchDevicePixelRatio(): void {
+  const arm = () => {
+    const query = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    query.addEventListener(
+      'change',
+      () => {
+        applyZoom();
+        arm();
+      },
+      { once: true },
+    );
+  };
+  arm();
 }
 
 function wireControls(): void {
@@ -415,5 +456,5 @@ updateDitherControls();
 wireControls();
 wireDropAndPaste();
 syncLevelOutputs();
-applyZoom();
-drawCurve(dom.curve, buildLevelsLut(state.levels));
+watchDevicePixelRatio();
+applyZoom(); // also draws the initial tone curve

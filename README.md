@@ -48,8 +48,15 @@ live.
    Burkes, Sierra-3, Sierra-2, Sierra Lite, plus threshold, random, and Bayer 4×4 / 8×8.
    Error diffusion can run in serpentine (boustrophedon) scan order.
 
-Previews are drawn with nearest-neighbour scaling at integer zoom levels — a dither
-pattern viewed through a smoothing filter is a lie, and the pattern is the whole point.
+Previews are drawn with nearest-neighbour scaling — a dither pattern viewed through a
+smoothing filter is a lie, and the pattern is the whole point. Zoom is measured in
+**device pixels per image pixel**, not CSS pixels, so every pixel stays exactly the same
+size whatever your Windows display scale is set to. At a fractional scale such as 125% the
+naive approach would ask for 2.5 device pixels per image pixel and the browser would round
+each one, leaving columns alternately 2 and 3 pixels wide and edges looking jagged. The
+side effect is that the preview keeps its physical size rather than growing with the
+display scale, so at 125% it looks smaller relative to the surrounding text — that is what
+scaling to physical pixels means, and 4× is there when you want it larger.
 
 ## Build it yourself
 

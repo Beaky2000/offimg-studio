@@ -78,9 +78,23 @@ Bayer 4×4/8×8 — thirteen in total. Random dither uses a **seeded** xorshift,
 file matches what is on screen. Inversion is applied here, not in the encoder, so preview
 and file always agree.
 
-Previews use a 400×240 backing store scaled in CSS at integer zoom with
-`image-rendering: pixelated`. Smoothing would misrepresent the dither pattern, which is
-the one thing the user is judging.
+Previews are sized in **device pixels**, not CSS pixels: the backing store is
+`400·scale × 240·scale`, the frame is blitted into it with smoothing off (an exact integer
+nearest-neighbour expansion), and the CSS size is `backing / devicePixelRatio` so backing
+pixels land 1:1 on device pixels. Each image pixel therefore covers exactly
+`scale × scale` device pixels at any OS display scale.
+
+The naive approach — one 400×240 canvas scaled up in CSS with `image-rendering: pixelated`
+— only looks right at 100%. At 125% the ratio is 1.25, so a 2× zoom asks for 2.5 device
+pixels per image pixel; the browser rounds each one and columns come out alternately 2 and
+3 device pixels wide, which reads as jagged edges and unevenly sized pixels. Fatal for a
+tool whose entire job is judging that pattern.
+
+Accepted trade-off: the preview keeps its physical size instead of growing with the display
+scale, so at 125% it appears smaller relative to the surrounding text. A 4× zoom level
+exists to compensate. `devicePixelRatio` changes (moving the window between monitors,
+changing the scale while the page is open) are picked up via a re-armed `(resolution: …dppx)`
+media query.
 
 ## BMP output
 

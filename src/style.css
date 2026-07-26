@@ -8,11 +8,13 @@
   --accent: #5aa9ff;
   --accent-ink: #05203c;
 
-  /* Set by applyZoom() in main.ts. The stage grid sizes its columns from this
-     so that zooming in gives the previews more room instead of letting them
-     spill out of their panels. */
-  --zoom: 2;
-  --preview-w: calc(400px * var(--zoom));
+  /* The preview's on-screen CSS width, published by applyZoom() in main.ts.
+     It cannot be derived in CSS because it depends on devicePixelRatio: the
+     previews are sized in device pixels so their pixels stay evenly sized at
+     any OS display scale. The stage grid sizes its columns from this, so
+     zooming in gives the previews more room rather than letting them spill out
+     of their panels. The fallback matches the default 2x at a ratio of 1. */
+  --preview-w: 800px;
   /* Preview width plus the panel's own padding and border. Deliberately does
      NOT reserve a lane for the controls: the stage body wraps them underneath
      when there is no room beside, and reserving the lane here would cost the
