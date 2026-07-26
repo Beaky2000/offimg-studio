@@ -230,6 +230,9 @@ function setStatus(message: string, kind: 'ok' | 'err' | null): void {
 }
 
 function applyZoom(): void {
+  // The stage grid sizes its columns from --zoom (see style.css), so this has
+  // to be published to CSS as well as applied to each canvas.
+  document.documentElement.style.setProperty('--zoom', String(state.zoom));
   for (const preview of Object.values(previews)) preview.setZoom(state.zoom);
 }
 

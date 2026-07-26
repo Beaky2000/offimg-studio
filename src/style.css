@@ -7,6 +7,18 @@
   --muted: #969ca8;
   --accent: #5aa9ff;
   --accent-ink: #05203c;
+
+  /* Set by applyZoom() in main.ts. The stage grid sizes its columns from this
+     so that zooming in gives the previews more room instead of letting them
+     spill out of their panels. */
+  --zoom: 2;
+  --preview-w: calc(400px * var(--zoom));
+  /* Preview width plus the panel's own padding and border. Deliberately does
+     NOT reserve a lane for the controls: the stage body wraps them underneath
+     when there is no room beside, and reserving the lane here would cost the
+     two-up layout at 1x for no benefit. */
+  --stage-min: calc(var(--preview-w) + 3rem);
+
   color-scheme: dark;
 }
 
@@ -94,11 +106,23 @@ body {
 
 /* ---------- stage grid ---------- */
 
-/* auto-fit means: two-up on a wide screen, single column when narrow, with no
-   media-query breakpoints to keep in sync. */
+/* auto-fit means: two-up when the previews are small enough to pair, single
+   column once they aren't, with no media-query breakpoints to keep in sync.
+   The track minimum follows --zoom, so raising the zoom drops the grid to one
+   column rather than overflowing the panels.
+
+   min(100%, ...) is load-bearing: without it a track minimum wider than the
+   container makes the grid overflow the page ("grid blowout") and the whole
+   document scrolls sideways. */
 .stages {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(540px, 1fr));
+  /* Track minimum is the larger of "wide enough for the preview" and "half the
+     row", which caps the grid at two columns. There are exactly four stages, so
+     2x2 reads as a pipeline; three across would leave a ragged single panel. */
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, max(var(--stage-min), (100% - 20px) / 2)), 1fr)
+  );
   gap: 20px;
   align-items: start;
 }
@@ -137,8 +161,14 @@ body {
   gap: 16px;
 }
 
+/* Last line of defence: at the highest zoom on a narrow window the canvas can
+   still be wider than its panel. Scroll it inside its own box rather than
+   letting it cover the neighbouring stage. The canvas itself must never be
+   given a max-width, since shrinking it would resample the dither pattern. */
 .preview-wrap {
   flex: 0 0 auto;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .controls {
