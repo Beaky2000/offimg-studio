@@ -14,10 +14,14 @@
  *   - Each row is padded to a 4-byte boundary. At 400 px wide that is 50 bytes
  *     of pixels in a 52-byte row, i.e. 2 bytes of padding per row.
  *
- * Polarity: palette index 0 is black and index 1 is white, matching the 1-bit
- * output GIMP produces (known to work on the calculator). A set bit therefore
- * means white. `invert` flips the pixel bits rather than the palette, so the
- * colour table stays in that known-good form either way.
+ * Polarity: palette index 0 is black and index 1 is white, so a set bit means
+ * white. This is confirmed twice over — it matches the colour table of a real
+ * off-image byte for byte (see test/referenceOffimg.test.ts), and output written
+ * by this encoder has been displayed on a DM42 the right way round.
+ *
+ * `invert` flips the pixel bits rather than the palette, so the colour table
+ * stays in that confirmed-good form either way. It exists as a creative choice,
+ * not as a workaround for uncertainty about polarity.
  */
 
 export const OFFIMG_WIDTH = 400;

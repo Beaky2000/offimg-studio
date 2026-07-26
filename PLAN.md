@@ -1,8 +1,9 @@
 # OFFIMG Studio — plan and status
 
-**Status: v1 implemented.** 105 tests pass; the encoder is verified byte-for-byte against
-a genuine OFFIMG header; the pipeline has been exercised in a real browser. The one thing
-still outstanding is a hardware check (see *Remaining*).
+**Status: v1 complete and confirmed on hardware.** 105 tests pass; the encoder is verified
+byte-for-byte against a genuine OFFIMG header; the pipeline has been exercised in a real
+browser; and output has been displayed on a real DM42 with correct black/white polarity.
+Only the GitHub publishing steps remain (see *Remaining*).
 
 ## Context
 
@@ -156,12 +157,21 @@ Both comfortably inside a 16.7 ms frame, so sliders are live.
 - Tests pass both with and without the optional reference image, so CI stays green on a
   fresh clone.
 
+## Confirmed on hardware
+
+- Output displays correctly on a real DM42: **black and white are the right way round**
+  with no inversion needed. Palette index 0 = black, a set bit = white, which is what the
+  reference header already implied. The polarity question is closed.
+- The `Invert output` control is therefore **not** a polarity escape hatch. It is kept as a
+  creative option, since a negative can read better than a positive on a bilevel LCD,
+  particularly for line art and text.
+- Previews look correct at 100%, 125% and 150% Windows display scale. The residual concern
+  about a fractional element position softening the image at 150% did not materialise, so
+  no position snapping is needed.
+
 ## Remaining
 
-1. **Hardware check** — copy an output to `/OFFIMG/` on a DM42 and power it off, to
-   confirm it displays and is not inverted. Everything points to the polarity being
-   right, but only the calculator can settle it.
-2. Replace the `USER` placeholders in `README.md` and `index.html` with the real GitHub
+1. Replace the `USER` placeholders in `README.md` and `index.html` with the real GitHub
    account, then enable Pages (Settings → Pages → Source: GitHub Actions).
 
 ## Deliberate simplifications
