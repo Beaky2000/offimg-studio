@@ -11,7 +11,7 @@ import './style.css';
 
 import { OFFIMG_HEIGHT, OFFIMG_WIDTH } from './io/bmp1.js';
 import { decodeImageFile, firstImageFile, toBmpFilename, type SourceImage } from './io/decode.js';
-import { ensureBmpExtension, saveOffimg } from './io/save.js';
+import { saveOffimg } from './io/save.js';
 import {
   DEFAULT_DITHER,
   DITHER_OPTIONS,
@@ -104,7 +104,6 @@ const dom = {
   seed: el<HTMLInputElement>('seed'),
   seedOut: el<HTMLOutputElement>('seed-out'),
 
-  filename: el<HTMLInputElement>('filename'),
   save: el<HTMLButtonElement>('save'),
   saveStatus: el<HTMLParagraphElement>('save-status'),
 };
@@ -134,6 +133,15 @@ const state: {
 
 let source: SourceImage | null = null;
 let aspectMatches = false;
+
+/**
+ * Pre-fills the save dialog, derived from the loaded image's name.
+ *
+ * Not shown in the UI: displaying it implied the file would definitely be called
+ * this, when the save dialog lets the user type anything. The name the file ends
+ * up with comes back from `saveOffimg`.
+ */
+let suggestedFilename = 'offimg.bmp';
 
 // Cached stage outputs, reused across recomputes to avoid per-frame allocation.
 let framed: Uint8ClampedArray | null = null;
@@ -199,7 +207,7 @@ async function loadFile(file: File): Promise<void> {
     `(${(source.width / source.height).toFixed(3)}:1)` +
     (aspectMatches ? ', matches 5:3' : ', does not match 5:3 (1.667:1)');
 
-  dom.filename.value = toBmpFilename(source.name);
+  suggestedFilename = toBmpFilename(source.name);
   setStatus('', null);
   updateFrameControls();
   invalidate(STAGE_FRAME);
@@ -414,11 +422,12 @@ function wireControls(): void {
     if (!mono) return;
     void (async () => {
       try {
-        const outcome = await saveOffimg(mono, dom.filename.value);
+        const { outcome, name } = await saveOffimg(mono, suggestedFilename);
         if (outcome === 'cancelled') {
           setStatus('', null);
         } else {
-          const name = ensureBmpExtension(dom.filename.value);
+          // `name` comes back from the save dialog, so this reports what the
+          // file was actually called rather than what we suggested.
           setStatus(
             outcome === 'saved' ? `Saved ${name}.` : `Downloaded ${name} to your downloads folder.`,
             'ok',
