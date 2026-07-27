@@ -187,13 +187,31 @@ body {
    filter misrepresents exactly the thing the user is judging. */
 .preview {
   display: block;
+
+  /* Load-bearing. The global `* { box-sizing: border-box }` above would make the
+     width set by setScale() the *border* box, so the 1px frame is taken off each
+     edge and a 400x240 backing store ends up displayed in 398x238 CSS px. That is
+     a non-integer downscale, and nearest-neighbour resolves it by dropping one
+     column and one row outright — visible as seams a quarter and three quarters
+     of the way across. The shortfall is a constant 2 device pixels, so it looks
+     the same at every display scale and merely gets thinner as the zoom rises.
+     content-box keeps the declared size as the drawing surface, with the frame
+     outside it. */
+  box-sizing: content-box;
+
   image-rendering: pixelated;
   background: #000;
+  /* Square corners: a radius clips the image's own corner pixels. */
   border: 1px solid var(--line);
-  border-radius: 3px;
 }
 
 .curve {
+  /* Same reason as .preview: drawCurve sizes the backing store to 96px * dpr, so
+     the declared 96px has to be the drawing surface rather than the surface
+     minus the frame. Only a slight softening here rather than dropped lines,
+     since the curve is an anti-aliased plot, but there is no reason to resample
+     it. The rounded corners are harmless on a plot. */
+  box-sizing: content-box;
   image-rendering: auto;
   background: var(--panel-2);
   border: 1px solid var(--line);
