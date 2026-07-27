@@ -98,7 +98,19 @@ measured midtone across the full contrast range at brightness +50 is 180–182, 
 within rounding. Every step pins 0 and 1, so neither control can disturb the black or white
 point.
 
-**4 — Dither.** One generic error-diffusion engine parameterised by taps + divisor +
+**4 — Dither.** Error diffusion is causal — every tap has `dy >= 0`, and `dy === 0` taps
+have `dx > 0` — so nothing ever propagates upward and the first row would otherwise start
+with no incoming error. Within row 0 the only feedback is the single rightward tap (7/16
+for Floyd–Steinberg), a loop whose fixed point is `(L - 0.4375*255) / 0.5625`; above
+`L ≈ 184` that sits over the threshold, so row 0 **cannot** emit a black pixel and a bright
+flat image gets a solid white band across the top — measured at 1 row deep at level 200,
+2 at 230, 7 at 245 and 14 at 250. `WARMUP_ROWS = 48` rows replicating the top row are
+therefore dithered above the image and discarded, so the real row 0 arrives carrying the
+error it would have had mid-image. The count must stay even or the serpentine parity of
+every row flips. See the comment in `dither/errorDiffusion.ts` for the measurements behind
+the 48.
+
+One generic error-diffusion engine parameterised by taps + divisor +
 serpentine flag, covering Floyd–Steinberg, False Floyd–Steinberg, Jarvis–Judice–Ninke,
 Stucki, Atkinson, Burkes, Sierra-3, Sierra-2 and Sierra Lite. Plus threshold, random and
 Bayer 4×4/8×8 — thirteen in total. Random dither uses a **seeded** xorshift, not

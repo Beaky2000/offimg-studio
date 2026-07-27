@@ -6,6 +6,11 @@ import {
   type DitherId,
   type DitherSettings,
 } from '../src/pipeline/dither.js';
+import {
+  WARMUP_ROWS,
+  ditherErrorDiffusion,
+} from '../src/pipeline/dither/errorDiffusion.js';
+import { DIFFUSION_KERNELS } from '../src/pipeline/dither/matrices.js';
 import { aspectMatchesTarget, computeDrawRect } from '../src/pipeline/frame.js';
 import {
   CHANNEL_NAMES,
@@ -530,8 +535,102 @@ describe('dither', () => {
     // Two pixels at 128. The first quantises up to 255, leaving an error of
     // -127; 7/16 of that (-55.5625) lands on the second pixel, taking it to
     // 72.4375, which is below the threshold.
-    const out = dither(new Uint8Array([128, 128]), 2, 1, settings());
+    //
+    // warmupRows: 0 so this exercises the kernel arithmetic alone. With the
+    // shipped run-in the first row would arrive carrying error from the rows
+    // dithered above it, which is correct but not hand-checkable.
+    const out = ditherErrorDiffusion(
+      new Uint8Array([128, 128]),
+      2,
+      1,
+      DIFFUSION_KERNELS['floyd-steinberg'],
+      false,
+      undefined,
+      0,
+    );
     expect([...out]).toEqual([255, 0]);
+  });
+
+  describe('top-row run-in', () => {
+    // Error diffusion is causal: nothing propagates upward, so without a run-in
+    // the first row receives no incoming error at all. Within row 0 the only
+    // feedback is the single rightward tap (7/16 for Floyd–Steinberg), giving a
+    // fixed point of (L - 0.4375*255) / 0.5625. Above L ~= 184 that stays over
+    // the threshold, so row 0 cannot emit a single black pixel and a bright flat
+    // image gets a solid white band across the top. WARMUP_ROWS fixes this by
+    // dithering discarded rows above the image first.
+    const W = 200;
+    const H = 120;
+
+    const leadingSolidRows = (mono: Uint8Array, colour: number) => {
+      let rows = 0;
+      for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) if (mono[y * W + x] !== colour) return rows;
+        rows++;
+      }
+      return rows;
+    };
+
+    const flat = (level: number) => new Uint8Array(W * H).fill(level);
+
+    it('is an even number of rows, or serpentine parity would flip', () => {
+      expect(WARMUP_ROWS % 2).toBe(0);
+    });
+
+    it('leaves a solid white band without the run-in', () => {
+      // Guards the diagnosis itself: if this ever stops failing, the test below
+      // is no longer proving anything.
+      for (const level of [200, 230, 245]) {
+        const bare = ditherErrorDiffusion(
+          flat(level),
+          W,
+          H,
+          DIFFUSION_KERNELS['floyd-steinberg'],
+          true,
+          undefined,
+          0,
+        );
+        expect(leadingSolidRows(bare, 255)).toBeGreaterThan(0);
+      }
+    });
+
+    it('removes the band on bright flat fields', () => {
+      for (const level of [190, 200, 215, 230, 245]) {
+        const out = dither(flat(level), W, H, settings({ serpentine: true }));
+        expect(leadingSolidRows(out, 255), `level ${level}`).toBe(0);
+      }
+    });
+
+    it('removes the equivalent band on dark flat fields', () => {
+      for (const level of [10, 25, 40, 65] as const) {
+        const out = dither(flat(level), W, H, settings({ serpentine: true }));
+        expect(leadingSolidRows(out, 0), `level ${level}`).toBe(0);
+      }
+    });
+
+    it('brings the first rows close to the steady-state density', () => {
+      // Averaged over two rows, because a flat field dithers with a natural
+      // two-row alternation that a single-row comparison would misread.
+      for (const level of [200, 230]) {
+        const out = dither(flat(level), W, H, settings({ serpentine: true }));
+        const rowWhite = (y: number) => {
+          let n = 0;
+          for (let x = 0; x < W; x++) if (out[y * W + x] === 255) n++;
+          return n / W;
+        };
+        const first = (rowWhite(0) + rowWhite(1)) / 2;
+        let tail = 0;
+        for (let y = H - 40; y < H; y++) tail += rowWhite(y);
+        expect(Math.abs(first - tail / 40), `level ${level}`).toBeLessThan(0.05);
+      }
+    });
+
+    it('still leaves pure black and pure white untouched', () => {
+      for (const algorithm of ALL_IDS) {
+        expect(dither(flat(0), W, H, settings({ algorithm })).every((v) => v === 0)).toBe(true);
+        expect(dither(flat(255), W, H, settings({ algorithm })).every((v) => v === 255)).toBe(true);
+      }
+    });
   });
 
   const MEAN_PRESERVING: DitherId[] = [
